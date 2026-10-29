@@ -134,7 +134,7 @@ def _fires(lat: float, lon: float, day: str) -> dict:
         status = "no_key" if "FIRMS_MAP_KEY" in str(exc) else "error"
         return {"status": status, "summary": str(exc), "items": []}
     except Exception as exc:
-        return {"status": "error", "summary": f"FIRMS request failed: {exc}", "items": []}
+        return {"status": "error", "summary": f"FIRMS request failed ({type(exc).__name__})", "items": []}
     result = {"status": "ok", "summary": firms.summarize(items), "items": items}
     _fires_cache[key] = result
     return result

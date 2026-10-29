@@ -31,7 +31,7 @@ def active_fires(lat: float, lon: float, until: date, days: int = 2,
                  radius_km: float = 50.0) -> list[dict]:
     """Fire detections within `radius_km` of the point, during the `days`
     days ending on `until`, nearest first."""
-    key = os.environ.get("FIRMS_MAP_KEY")
+    key = os.environ.get("FIRMS_MAP_KEY", "").strip()
     if not key:
         raise RuntimeError("FIRMS_MAP_KEY is not set.")
 
@@ -44,9 +44,16 @@ def active_fires(lat: float, lon: float, until: date, days: int = 2,
     dlon = radius_km / (111.0 * math.cos(math.radians(lat)))
     bbox = f"{lon - dlon:.3f},{lat - dlat:.3f},{lon + dlon:.3f},{lat + dlat:.3f}"
 
-    resp = httpx.get(AREA_URL.format(key=key, source=source, bbox=bbox,
-                                     days=days, day=first_day.isoformat()), timeout=60)
-    resp.raise_for_status()
+    # Errors never include the request URL: it contains the key and is shown to visitors.
+    try:
+        resp = httpx.get(AREA_URL.format(key=key, source=source, bbox=bbox,
+                                         days=days, day=first_day.isoformat()), timeout=60)
+    except httpx.HTTPError as exc:
+        raise RuntimeError(f"FIRMS unreachable ({type(exc).__name__})") from None
+    if resp.status_code == 400:
+        raise RuntimeError("FIRMS rejected the request: check that FIRMS_MAP_KEY is a valid MAP_KEY.")
+    if resp.status_code != 200:
+        raise RuntimeError(f"FIRMS error: HTTP {resp.status_code}")
     if not resp.text.startswith("latitude"):
         raise RuntimeError(f"FIRMS error: {resp.text.strip()[:200]}")
 
