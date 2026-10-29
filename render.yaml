@@ -1,0 +1,21 @@
+# One-click deploy on Render: New > Blueprint > pick this repository.
+# Add the keys as secret environment variables in the Render dashboard.
+services:
+  - type: web
+    name: firewatch
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn firewatch.server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/regions
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: FIREWATCH_CACHE
+        value: /tmp/firewatch
+      - key: NEBIUS_API_KEY
+        sync: false
+      - key: FIRMS_MAP_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false

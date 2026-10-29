@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FireWatch · Global wildfire danger agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="/" aria-label="FireWatch home">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+      <defs><linearGradient id="flame" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0" stop-color="#ff3d2e"/><stop offset=".6" stop-color="#ff8a3d"/><stop offset="1" stop-color="#ffd166"/>
+      </linearGradient></defs>
+      <path fill="url(#flame)" d="M16 2c1 5-3 7-3 11 0 2 1 3 2 3-1-3 2-5 4-8 3 4 6 7 6 12a9 9 0 0 1-18 0c0-4 2-7 4-9 0 2 1 4 3 4-2-5 1-9 2-13z"/>
+    </svg>
+    <span><b>FireWatch</b><small>Global wildfire danger agent</small></span>
+  </a>
+
+  <form class="search" id="search-form" role="search" autocomplete="off">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="search" type="search" placeholder="Search any place on Earth…" aria-label="Search a place">
+    <ul id="search-results" class="search-results" hidden></ul>
+  </form>
+  <button id="locate" class="btn locate" title="Go to my location" aria-label="Go to my location">📍</button>
+
+  <div class="controls">
+    <label class="field"><span>Historic fire</span><select id="fire"></select></label>
+    <label class="field"><span>Date</span><input type="date" id="date"></label>
+    <label class="field"><span>Forecast</span>
+      <select id="forecast">
+        <option value="0">None</option><option value="3">3 days</option>
+        <option value="5">5 days</option><option value="7">7 days</option>
+      </select>
+    </label>
+    <label class="field"><span>Language</span>
+      <select id="lang">
+        <option value="en">English</option><option value="el">Ελληνικά</option>
+        <option value="es">Español</option><option value="pt">Português</option>
+        <option value="fr">Français</option><option value="it">Italiano</option>
+        <option value="de">Deutsch</option><option value="tr">Türkçe</option>
+        <option value="ja">日本語</option><option value="ko">한국어</option>
+      </select>
+    </label>
+    <button id="today" class="btn ghost" title="Today plus 5 forecast days"><span class="dot"></span>Live</button>
+    <button id="load" class="btn primary">Load</button>
+  </div>
+</header>
+
+<div id="error" class="toast" role="alert" hidden></div>
+
+<div class="app">
+  <section class="map-wrap">
+    <div id="map" aria-label="Map. Click any point on land to analyse it."></div>
+
+    <a class="proof" id="proof" href="#evidence" hidden>
+      <span class="proof-num" id="proof-num">–</span>
+      <span class="proof-text" id="proof-text">–</span>
+    </a>
+
+    <div class="legend" id="legend"></div>
+
+    <div class="replay">
+      <button id="play" class="play" aria-label="Play replay">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path id="play-icon" d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div class="replay-track">
+        <div class="replay-meta"><span id="slider-day">–</span><span id="slider-label" class="muted">–</span></div>
+        <input type="range" id="slider" min="0" max="0" value="0" aria-label="Replay day">
+      </div>
+    </div>
+
+    <div class="ignite">
+      <button id="ignite-btn" class="btn ignite-btn" aria-pressed="false">🔥 Simulate a fire</button>
+      <select id="fuel" aria-label="Fuel type">
+        <option value="pine">Pine forest</option>
+        <option value="grass">Grassland</option>
+        <option value="boreal">Boreal spruce</option>
+      </select>
+      <p class="map-hint"><span id="map-hint">Click anywhere on land to analyse it</span></p>
+    </div>
+  </section>
+
+  <aside class="side">
+    <section class="card hero">
+      <div class="hero-head">
+        <div>
+          <h1 id="place">–</h1>
+          <p class="muted" id="day">–</p>
+        </div>
+        <span class="badge" id="danger">–</span>
+      </div>
+
+      <div class="gauge-wrap">
+        <svg class="gauge" viewBox="0 0 220 128" role="img" aria-labelledby="gauge-title">
+          <title id="gauge-title">Fire Weather Index gauge</title>
+          <g id="gauge-arcs"></g>
+          <g id="gauge-needle" class="needle">
+            <line x1="110" y1="112" x2="110" y2="48"/>
+            <circle cx="110" cy="112" r="7"/>
+          </g>
+        </svg>
+        <div class="gauge-value"><span id="fwi">–</span><small>Fire Weather Index</small></div>
+      </div>
+
+      <div class="weather">
+        <div><span>Temp</span><b id="temp">–</b></div>
+        <div><span>Humidity</span><b id="rh">–</b></div>
+        <div><span>Wind</span><b id="wind">–</b></div>
+        <div><span>Rain 24h</span><b id="rain">–</b></div>
+      </div>
+
+      <div class="components" id="components"></div>
+      <button id="ignite-side" class="btn primary ignite-side" aria-pressed="false">🔥 Simulate a fire here</button>
+    </section>
+
+    <section class="card spread-card" id="spread-card" hidden>
+      <div class="card-head"><h2>🔥 Fire spread scenario</h2><span class="muted small">Canadian FBP System</span></div>
+      <div id="spread-body"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Danger trend</h2><span class="muted small">60 days · dashed = forecast</span></div>
+      <div class="chart-wrap"><canvas id="chart" role="img" aria-label="Daily Fire Weather Index"></canvas></div>
+    </section>
+
+    <section class="card agent">
+      <div class="card-head">
+        <h2>Nemotron agent</h2>
+        <button id="brief" class="btn primary small">Run agent</button>
+      </div>
+      <p id="model" class="muted small"></p>
+      <ol id="trace" class="trace"></ol>
+      <div id="briefing-text" class="markdown">
+        <p class="muted">The agent gathers evidence with its tools (fire weather, season context, satellites, news) and writes a briefing for residents, civil protection and volunteers.</p>
+      </div>
+      <div id="sources" class="sources"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Satellite detections</h2><span class="muted small">NASA FIRMS · VIIRS · 50 km</span></div>
+      <p id="fires-summary" class="muted">–</p>
+      <ul id="fires-list" class="fires"></ul>
+    </section>
+  </aside>
+</div>
+
+<section class="evidence" id="evidence">
+  <div class="evidence-head">
+    <div>
+      <p class="eyebrow">Validation</p>
+      <h2>Does it work? Fire danger on the day major wildfires started</h2>
+      <p class="muted">Each bar ranks the start day against every day of that location's fire season. The dashed line marks the top 10%. Click a fire to replay it.</p>
+    </div>
+    <div class="evidence-stat"><span id="evidence-num">–</span><small id="evidence-sub">–</small></div>
+  </div>
+  <div id="validation-rows" class="validation"><p class="muted">Computing…</p></div>
+</section>
+
+<footer>
+  <p>Decision-support tool only. In an emergency call your local emergency number (112 · 911 · 000).</p>
+  <p class="muted">FWI: Canadian Fire Weather Index System (Van Wagner 1987) · Weather: Open-Meteo (ERA5 + forecast) · Danger map: Copernicus EFFIS/GWIS · Fires: NASA FIRMS · News: Tavily · Places: OpenStreetMap · Models: NVIDIA Nemotron on Nebius Token Factory</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
